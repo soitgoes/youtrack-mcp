@@ -57,10 +57,12 @@ export function sanitizeDescription(description: string | undefined): string {
 
 /**
  * Sanitizes comment text
- * Similar to description but may have different rules
+ * Similar to description plus strips HTML/script tags for safety
  */
 export function sanitizeComment(comment: string | undefined): string {
   if (!comment) return '';
-  
-  return sanitizeDescription(comment);
+  let out = comment;
+  out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
+  out = out.replace(/<[^>]+>/g, '');
+  return sanitizeDescription(out);
 }

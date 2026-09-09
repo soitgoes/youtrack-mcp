@@ -43,8 +43,8 @@ export class ParameterValidator {
       throw new ValidationError(`${fieldName} is required`, fieldName);
     }
 
-    // YouTrack issue IDs: PROJECT-123, TEST-1, 3-511
-    const issueIdPattern = /^([A-Z][A-Z0-9]*(-[A-Z0-9]+)*-\d+|\d+-\d+)$/i;
+    // YouTrack issue IDs: PROJECT-123, 911C-2937, TEST-1, 3-511
+    const issueIdPattern = /^([A-Z0-9][A-Z0-9]*(-[A-Z0-9]+)*-\d+|\d+-\d+)$/i;
     
     if (!issueIdPattern.test(issueId)) {
       throw new ValidationError(

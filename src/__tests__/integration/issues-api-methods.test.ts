@@ -430,6 +430,7 @@ describe('IssuesAPIClient - Method Logic Tests', () => {
 
   describe('addComment', () => {
     test('should add comment to issue', async () => {
+      mockGet.mockResolvedValue({ data: { id: '2-1' }, status: 200 });
       mockPost.mockResolvedValue({
         data: {
           id: 'comment-1',
@@ -441,18 +442,50 @@ describe('IssuesAPIClient - Method Logic Tests', () => {
 
       const result = await client.addComment('TEST-1', 'Test comment');
 
+      expect(mockGet).toHaveBeenCalledWith('/issues/TEST-1', expect.objectContaining({ params: expect.objectContaining({ fields: 'id' }) }));
       expect(mockPost).toHaveBeenCalledWith(
-        '/issues/TEST-1/comments',
+        expect.stringMatching(/^\/issues\/2-1\/comments(\?|$)/),
         expect.objectContaining({
           text: 'Test comment',
-        }),
-        expect.any(Object)
+        })
       );
 
       expect(result.content[0].text).toContain('comment');
     });
 
+    test('should use internal id for readable issue id so comment is created on correct issue', async () => {
+      mockGet
+        .mockResolvedValueOnce({ data: { id: '2-6225' }, status: 200 })
+        .mockResolvedValueOnce({
+          data: [
+            { id: '4-7985', text: 'Existing comment', author: { login: 'other' }, created: 1 },
+            { id: '4-7999', text: 'New comment from add', author: { login: 'me' }, created: 2 },
+          ],
+          status: 200,
+        });
+      mockPost.mockResolvedValue({
+        data: { id: '4-7999', text: 'New comment from add', author: { login: 'me' }, created: 2 },
+        status: 200,
+      });
+
+      const addResult = await client.addComment('911C-2937', 'New comment from add');
+      expect(addResult.content[0].text).toContain('Comment added successfully');
+
+      const listResult = await client.getIssueComments('911C-2937');
+      const parsed = JSON.parse(listResult.content[0].text);
+      const items = parsed.data?.items ?? parsed.items ?? [];
+      const added = items.find((c: any) => c.text === 'New comment from add');
+      expect(added).toBeDefined();
+      expect(added.id).toBe('4-7999');
+
+      expect(mockPost).toHaveBeenCalledWith(
+        expect.stringContaining('/issues/2-6225/comments'),
+        expect.objectContaining({ text: 'New comment from add' })
+      );
+    });
+
     test('should sanitize comment text', async () => {
+      mockGet.mockResolvedValue({ data: { id: '2-1' }, status: 200 });
       mockPost.mockResolvedValue({
         data: { id: 'c1', text: 'Safe' },
         status: 200,
@@ -495,6 +528,30 @@ describe('IssuesAPIClient - Method Logic Tests', () => {
       const result = await client.createIssue('TEST', { summary: 'Test' });
 
       expect(result.content[0].text).toContain('error');
+    });
+  });
+
+  describe('Comment add then fetch (911C-2937) - live integration', () => {
+    const issueId = '911C-2937';
+    const hasEnv = !!(process.env.YOUTRACK_URL && process.env.YOUTRACK_TOKEN);
+    const runLive = hasEnv ? test : test.skip;
+
+    runLive('add comment then fetch returns the new comment on the issue', async () => {
+      const liveClient = new IssuesAPIClient({
+        baseURL: process.env.YOUTRACK_URL!,
+        token: process.env.YOUTRACK_TOKEN!,
+      });
+      const uniqueText = `MCP test comment at ${Date.now()}`;
+      const addResult = await liveClient.addComment(issueId, uniqueText);
+      const addParsed = JSON.parse(addResult.content[0].text);
+      expect(addParsed.success).toBe(true);
+
+      const listResult = await liveClient.getIssueComments(issueId);
+      const listParsed = JSON.parse(listResult.content[0].text);
+      const items = listParsed.data?.items ?? listParsed.items ?? [];
+      const found = items.find((c: any) => c.text === uniqueText);
+      expect(found).toBeDefined();
+      expect(found?.id).toBeDefined();
     });
   });
 });

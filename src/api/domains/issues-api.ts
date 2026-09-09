@@ -275,6 +275,24 @@ export class IssuesAPIClient extends BaseAPIClient {
   }
   
   /**
+   * Resolve issue id (readable e.g. 911C-2937 or internal e.g. 2-6225) to internal id.
+   * YouTrack REST API expects internal id for POST /issues/{issueID}/comments when creating comments.
+   * @see https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues-issueID-comments.html
+   */
+  private async resolveIssueIdToInternal(issueId: string): Promise<string> {
+    if (!issueId) return issueId;
+    // Already internal format (digit-digit)
+    if (/^\d+-\d+$/.test(issueId)) return issueId;
+    try {
+      const response = await this.get(`/issues/${encodeURIComponent(issueId)}`, { fields: 'id' });
+      const internalId = response.data?.id;
+      return typeof internalId === 'string' ? internalId : issueId;
+    } catch {
+      return issueId;
+    }
+  }
+
+  /**
    * Get issue comments
    */
   async getIssueComments(issueId: string): Promise<MCPResponse> {
@@ -289,16 +307,19 @@ export class IssuesAPIClient extends BaseAPIClient {
   }
   
   /**
-   * Add comment to issue
+   * Add comment to issue.
+   * Uses internal issue id for the POST URL so the comment is created on the correct issue (readable id is resolved first).
    */
   async addComment(issueId: string, text: string): Promise<MCPResponse> {
-    const endpoint = `/issues/${issueId}/comments`;
+    const internalId = await this.resolveIssueIdToInternal(issueId);
+    const endpoint = `/issues/${internalId}/comments`;
+    const fieldsParam = 'fields=id,text,author(login,name),created';
     
     const commentData = { 
       $type: 'IssueComment',
       text: sanitizeComment(text)
     };
-    const response = await this.post(endpoint, commentData);
+    const response = await this.post(`${endpoint}?${fieldsParam}`, commentData);
     
     return ResponseFormatter.formatCreated(response.data, 'Comment', 'Comment added successfully');
   }
@@ -307,7 +328,8 @@ export class IssuesAPIClient extends BaseAPIClient {
    * Update existing comment
    */
   async updateComment(issueId: string, commentId: string, text: string): Promise<MCPResponse> {
-    const endpoint = `/issues/${issueId}/comments/${commentId}`;
+    const internalId = await this.resolveIssueIdToInternal(issueId);
+    const endpoint = `/issues/${internalId}/comments/${commentId}`;
     
     const commentData = { 
       $type: 'IssueComment',
@@ -321,7 +343,8 @@ export class IssuesAPIClient extends BaseAPIClient {
    * Delete comment
    */
   async deleteComment(issueId: string, commentId: string): Promise<MCPResponse> {
-    const endpoint = `/issues/${issueId}/comments/${commentId}`;
+    const internalId = await this.resolveIssueIdToInternal(issueId);
+    const endpoint = `/issues/${internalId}/comments/${commentId}`;
     
     await this.delete(endpoint);
     return ResponseFormatter.formatDeleted(commentId, 'Comment');

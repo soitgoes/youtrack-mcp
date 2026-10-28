@@ -1242,9 +1242,9 @@ export class YouTrackMCPServer {
       }
     }
     
-    return await client.issues.queryIssues({ 
-      query: scopedQuery, 
-      fields: fields ? fields.split(',') : ['id', 'summary', 'description', 'state', 'priority', 'reporter', 'assignee'],
+    return await client.issues.queryIssues({
+      query: scopedQuery,
+      ...(typeof fields === 'string' && fields.trim() ? { fields: fields.trim() } : {}),
       limit: limit || 50
     });
   }

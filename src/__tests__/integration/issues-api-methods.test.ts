@@ -247,6 +247,25 @@ describe('IssuesAPIClient - Method Logic Tests', () => {
         })
       );
     });
+
+    test('should pass fields as a single query string', async () => {
+      mockGet.mockResolvedValue({
+        data: [],
+        status: 200,
+      });
+
+      const fields = 'id,summary,customFields(name,value(name))';
+      await client.queryIssues({ query: 'project: TEST', fields });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        '/issues',
+        expect.objectContaining({
+          params: expect.objectContaining({
+            fields,
+          }),
+        })
+      );
+    });
   });
 
   describe('updateIssue', () => {

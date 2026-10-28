@@ -21,9 +21,9 @@ export class ParameterValidator {
     }
 
     // YouTrack project IDs can be:
-    // - Short names: PROJECT, DEMO, TEST-1
+    // - Short names: PROJECT, DEMO, TEST-1, 911C
     // - Internal IDs: 0-1, 0-18, 3-32
-    const projectIdPattern = /^([A-Z][A-Z0-9]*(-[A-Z0-9]+)*|\d+-\d+)$/i;
+    const projectIdPattern = /^([A-Z0-9]+(-[A-Z0-9]+)*|\d+-\d+)$/i;
     
     if (!projectIdPattern.test(projectId)) {
       throw new ValidationError(

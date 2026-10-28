@@ -1178,7 +1178,7 @@ export class YouTrackMCPServer {
     switch (action) {
       case 'create':
         return await client.issues.createIssue(this.resolveProjectId(projectId), { 
-          summary, description, priority, assignee, type 
+          summary, description, priority, assignee, type, state 
         });
       case 'update':
         return await client.issues.updateIssue(issueId, { 
